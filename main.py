@@ -4,6 +4,11 @@ import fitz
 from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
+from dialogs import InsertDialog, EmailToKindleDialog, EmailToOthersDialog
+from myemail import email_to
+from mythreads import EmailThread
+import time
+from Vkeyboard import *
 
 
 class PDFReader(QMainWindow):
@@ -19,6 +24,7 @@ class PDFReader(QMainWindow):
         self.file_path = ""
         self.page_num = 0
         self.doc = None
+        self.book_open = False
         self.dock = QDockWidget()
         self.generateDockWidget()
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock)
@@ -30,6 +36,7 @@ class PDFReader(QMainWindow):
         # self.scrollarea.setMinimumSize(500, 500)
         # temp = QHBoxLayout()
         self.pdfview = QLabel()
+        self.tocDict = {}
         # temp.addWidget(self.pdfview)
         # self.scrollarea.setLayout(temp)
         # self.scrollarea.
@@ -175,6 +182,7 @@ class PDFReader(QMainWindow):
         saveFile = QAction(QIcon('icon/Save (3).png'), '保存文件', self.toolbar)
         prePage = QAction(QIcon('icon/分页 下一页 (1).png'), '上一页', self.toolbar)
         nextPage = QAction(QIcon('icon/分页 下一页.png'), '下一页', self.toolbar)
+        turnPage = QAction(QIcon('icon/跳转.png'), '跳转', self.toolbar)
         insertPage = QAction(QIcon('icon/insert.png'), '添加页面', self.toolbar)
         deletePage = QAction(QIcon('icon/delete.png'), '删除当前页面', self.toolbar)
         extractPage = QAction(QIcon('icon/pdf.png'), '提取pdf页面', self.toolbar)
@@ -197,6 +205,7 @@ class PDFReader(QMainWindow):
         saveFile.triggered.connect(self.savefile)
         prePage.triggered.connect(self.prepage)
         nextPage.triggered.connect(self.nextpage)
+        turnPage.triggered.connect(self.turnpage)
         enlargePage.triggered.connect(self.enlargepage)
         shrinkPage.triggered.connect(self.shrinkpage)
         self.tofileConnect(toDocx, toHTML, toTXT)
@@ -206,7 +215,7 @@ class PDFReader(QMainWindow):
         self.toolbar.addSeparator()
         self.toolbar.addActions([openFile, saveFile])
         self.toolbar.addSeparator()
-        self.toolbar.addActions([prePage, nextPage])
+        self.toolbar.addActions([prePage, nextPage, turnPage])
         self.toolbar.addSeparator()
         self.toolbar.addActions([insertPage, deletePage, extractPage])
         self.toolbar.addSeparator()
@@ -254,7 +263,14 @@ class PDFReader(QMainWindow):
                 nodelist.append(node)
                 floorlist.append(floor)
                 tempdict[title] = page
-        return tempdict
+        self.tocDict = tempdict
+        self.toc.clicked.connect(self.bookmark_jump)
+
+    def bookmark_jump(self, index):
+        item = self.toc.currentItem()
+        self.page_num = self.tocDict[item.text(0)] - 1
+        self.scrollarea.verticalScrollBar().setValue(0)
+        self.generatePDFView()
 
     def tofileConnect(self, toDocx, toHTML, toTXT):
         toHTML.triggered.connect(self.tohtml)
@@ -286,6 +302,7 @@ class PDFReader(QMainWindow):
         self.file_path, _ = fDialog.getOpenFileName(self, "打开文件", ".", 'PDF file (*.pdf)')
         self.toc.clear()
         self.page_num = 0
+        self.book_open = True
         self.getDoc()
         self.generateDockWidget()
         self.generatePDFView()
@@ -295,13 +312,22 @@ class PDFReader(QMainWindow):
             self.doc = fitz.open(self.file_path)
 
     def closefile(self):
-        pass
+        self.file_path = ""
+        self.book_open = False
+        self.toc.clear()
+        self.pdfview.clear()
+        self.getDoc()
+        self.generatePDFView()
+        self.generateDockWidget()
 
     def savefile(self):
-        pass
+        if not self.book_open:
+            return
+        self.doc.save(self.doc.name, incremental=True, encryption=fitz.PDF_ENCRYPT_KEEP)
 
     def prepage(self):
         self.page_num -= 1
+        self.scrollarea.verticalScrollBar().setValue(0)
         self.generatePDFView()
 
     def nextpage(self):
@@ -309,6 +335,17 @@ class PDFReader(QMainWindow):
         self.scrollarea.verticalScrollBar().setValue(0)
         # scrollBar.setValue(200)
         self.generatePDFView()
+
+    def turnpage(self):
+        if not self.book_open:
+            return
+        allpages = self.doc.pageCount
+        print(allpages)
+        page, ok = QInputDialog.getInt(self, "选择页面", "输入目标页面({}-{})".format(1, allpages), min=1, max=allpages)
+        if ok:
+            self.page_num = page - 1
+            self.scrollarea.verticalScrollBar().setValue(0)
+            self.generatePDFView()
 
     def enlargepage(self):
         self.trans_a += 5
@@ -323,13 +360,54 @@ class PDFReader(QMainWindow):
         self.generatePDFView()
 
     def insertpage(self):
-        pass
+        if not self.book_open:
+            return
+        dig = InsertDialog(self)
+        dig.picSignal.connect(self.insertpage_pic)
+        dig.pdfSignal.connect(self.insertpage_pdf)
+        dig.show()
+
+    def insertpage_pic(self, pic_list):
+        if not self.book_open:
+            return
+        for pic in pic_list:
+            img = fitz.open(pic)
+            rect = img[0].rect  # pic dimension
+            pdfbytes = img.convertToPDF()  # make a PDF stream
+            img.close()  # no longer needed
+            imgPDF = fitz.open("pdf", pdfbytes)  # open stream as PDF
+            page = self.doc.newPage(self.page_num, width=rect.width,  # new page with ...
+                                    height=rect.height)  # pic dimension
+            page.showPDFpage(rect, imgPDF, 0)  # image fills the page
+            self.generatePDFView()
+
+    def insertpage_pdf(self, file_path, start, end):
+        if not self.book_open:
+            return
+        doc2 = fitz.open(file_path)
+        self.doc.insertPDF(doc2, from_page=start - 1, to_page=end - 1, start_at=self.page_num)
+        self.generatePDFView()
 
     def deletepage(self):
-        pass
+        if not self.book_open:
+            return
+        self.doc.deletePage(self.page_num)
+        self.scrollarea.verticalScrollBar().setValue(0)
+        self.generatePDFView()
 
     def extractpage(self):
-        pass
+        if not self.book_open:
+            return
+        allpages = self.doc.pageCount
+        start, ok = QInputDialog.getInt(self, "选择开始页面", "输入开始页面(1-{})".format(allpages), min=1, max=allpages)
+        if ok:
+            end, ok = QInputDialog.getInt(self, "选择结束页面", "输入结束页面({}-{})".format(start, allpages), min=start,
+                                          max=allpages)
+            if ok:
+                file_name, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF File(*.pdf)")
+                doc2 = fitz.open()
+                doc2.insertPDF(self.doc, from_page=start - 1, to_page=end - 1)
+                doc2.save(file_name)
 
     def inhtml(self):
         pass
@@ -359,16 +437,47 @@ class PDFReader(QMainWindow):
         pass
 
     def tokindle(self):
-        pass
+        if not self.book_open:
+            return
+        dig = EmailToKindleDialog(self)
+        dig.addressSignal.connect(self.sendMail)
+        dig.show()
+
+    def sendMail(self, address):
+        if not self.book_open:
+            return
+        t = EmailThread(email_to, (self.file_path, address))
+        t.finishSignal.connect(self.finish_mail)
+        t.start()
+        time.sleep(0.8)
+
+    def finish_mail(self, success):
+        if success:
+            QMessageBox.about(self, "提示", "发送成功")
+        else:
+            QMessageBox.about(self, "提示", "抱歉，发送失败，请检查邮箱后再次发送")
 
     def toqq(self):
-        pass
+        if not self.book_open:
+            return
+        copyFile(self.file_path)
+        QMessageBox.about(self, "提示", "文件已复制到剪贴板")
+        CtrlAltZ()
 
     def towechat(self):
-        pass
+        copyFile(self.file_path)
+        QMessageBox.about(self, "提示", "文件已复制到剪贴板")
+        CtrlAltW()
 
     def toemail(self):
-        pass
+        if not self.book_open:
+            return
+        dig = EmailToOthersDialog(self, self.file_path)
+        dig.emailSignal.connect(self.onToemail)
+        dig.show()
+
+    def onToemail(self, suc, fail):
+        QMessageBox.about(self, "提示", "{}个成功，{}个失败".format(suc, fail))
 
 
 if __name__ == '__main__':
