@@ -4,11 +4,12 @@ import fitz
 from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-from dialogs import InsertDialog, EmailToKindleDialog, EmailToOthersDialog
+from mydialogs import *
 from myemail import email_to
 from mythreads import EmailThread
 import time
 from Vkeyboard import *
+from convert import *
 
 
 class PDFReader(QMainWindow):
@@ -83,9 +84,9 @@ class PDFReader(QMainWindow):
         saveFile = QAction(QIcon('icon/save.png'), '保存文件', file)
         saveFile.setShortcut('Ctrl+S')
 
-        openFile.triggered.connect(self.openfile)
-        closeFile.triggered.connect(self.closefile)
-        saveFile.triggered.connect(self.savefile)
+        openFile.triggered.connect(self.onOpen)
+        closeFile.triggered.connect(self.onClose)
+        saveFile.triggered.connect(self.onSave)
 
         file.addAction(openFile)
         file.addMenu('最近文件')
@@ -200,10 +201,10 @@ class PDFReader(QMainWindow):
         prePage.setShortcut(Qt.Key_Left)
 
         self.shareConnect(toEmail, toKindle, toQQ, toWechat)
-        openFile.triggered.connect(self.openfile)
-        ToC.triggered.connect(self.handleDock)
-        saveFile.triggered.connect(self.savefile)
-        prePage.triggered.connect(self.prepage)
+        openFile.triggered.connect(self.onOpen)
+        ToC.triggered.connect(self.onDock)
+        saveFile.triggered.connect(self.onSave)
+        prePage.triggered.connect(self.onPrepage)
         nextPage.triggered.connect(self.nextpage)
         turnPage.triggered.connect(self.turnpage)
         enlargePage.triggered.connect(self.enlargepage)
@@ -269,8 +270,7 @@ class PDFReader(QMainWindow):
     def bookmark_jump(self, index):
         item = self.toc.currentItem()
         self.page_num = self.tocDict[item.text(0)] - 1
-        self.scrollarea.verticalScrollBar().setValue(0)
-        self.generatePDFView()
+        self.updatePdfView()
 
     def tofileConnect(self, toDocx, toHTML, toTXT):
         toHTML.triggered.connect(self.tohtml)
@@ -288,7 +288,7 @@ class PDFReader(QMainWindow):
         toWechat.triggered.connect(self.towechat)
         toEmail.triggered.connect(self.toemail)
 
-    def handleDock(self):
+    def onDock(self):
         try:
             if self.dock.isVisible():
                 self.dock.setVisible(False)
@@ -297,9 +297,13 @@ class PDFReader(QMainWindow):
         except AttributeError:
             pass
 
-    def openfile(self):
+    def onOpen(self):
         fDialog = QFileDialog()
-        self.file_path, _ = fDialog.getOpenFileName(self, "打开文件", ".", 'PDF file (*.pdf)')
+        filename, _ = fDialog.getOpenFileName(self, "打开文件", ".", 'PDF file (*.pdf)')
+        self.open_file(filename)
+
+    def open_file(self, filename):
+        self.file_path = filename
         self.toc.clear()
         self.page_num = 0
         self.book_open = True
@@ -311,7 +315,7 @@ class PDFReader(QMainWindow):
         if self.file_path:
             self.doc = fitz.open(self.file_path)
 
-    def closefile(self):
+    def onClose(self):
         self.file_path = ""
         self.book_open = False
         self.toc.clear()
@@ -320,21 +324,26 @@ class PDFReader(QMainWindow):
         self.generatePDFView()
         self.generateDockWidget()
 
-    def savefile(self):
+    def onSave(self):
         if not self.book_open:
             return
         self.doc.save(self.doc.name, incremental=True, encryption=fitz.PDF_ENCRYPT_KEEP)
 
-    def prepage(self):
+    def onPrepage(self):
         self.page_num -= 1
+        if self.page_num < 0:
+            self.page_num += self.doc.pageCount
+        self.updatePdfView()
+
+    def updatePdfView(self):
         self.scrollarea.verticalScrollBar().setValue(0)
         self.generatePDFView()
 
     def nextpage(self):
         self.page_num += 1
-        self.scrollarea.verticalScrollBar().setValue(0)
-        # scrollBar.setValue(200)
-        self.generatePDFView()
+        if self.page_num >= self.doc.pageCount:
+            self.page_num -= self.doc.pageCount
+        self.updatePdfView()
 
     def turnpage(self):
         if not self.book_open:
@@ -344,8 +353,7 @@ class PDFReader(QMainWindow):
         page, ok = QInputDialog.getInt(self, "选择页面", "输入目标页面({}-{})".format(1, allpages), min=1, max=allpages)
         if ok:
             self.page_num = page - 1
-            self.scrollarea.verticalScrollBar().setValue(0)
-            self.generatePDFView()
+            self.updatePdfView()
 
     def enlargepage(self):
         self.trans_a += 5
@@ -379,7 +387,7 @@ class PDFReader(QMainWindow):
             page = self.doc.newPage(self.page_num, width=rect.width,  # new page with ...
                                     height=rect.height)  # pic dimension
             page.showPDFpage(rect, imgPDF, 0)  # image fills the page
-            self.generatePDFView()
+        self.generatePDFView()
 
     def insertpage_pdf(self, file_path, start, end):
         if not self.book_open:
@@ -392,8 +400,7 @@ class PDFReader(QMainWindow):
         if not self.book_open:
             return
         self.doc.deletePage(self.page_num)
-        self.scrollarea.verticalScrollBar().setValue(0)
-        self.generatePDFView()
+        self.updatePdfView()
 
     def extractpage(self):
         if not self.book_open:
@@ -405,21 +412,38 @@ class PDFReader(QMainWindow):
                                           max=allpages)
             if ok:
                 file_name, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF File(*.pdf)")
-                doc2 = fitz.open()
-                doc2.insertPDF(self.doc, from_page=start - 1, to_page=end - 1)
-                doc2.save(file_name)
+                if file_name:
+                    doc2 = fitz.open()
+                    doc2.insertPDF(self.doc, from_page=start - 1, to_page=end - 1)
+                    doc2.save(file_name)
 
     def inhtml(self):
-        pass
+        dig = inHtmlDialog(self)
+        dig.finishSignal.connect(self.open_file)
+        dig.show()
 
     def inmarkdown(self):
-        pass
+        filename, _ = QFileDialog.getOpenFileName(self, "选择文件", ".", "markdown file(*.md)")
+        if filename:
+            toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "pdf file(*.pdf)")
+            if toname:
+                t = convertThread(mdToPdf, (filename, toname))
+                t.finishSignal.connect(lambda: self.open_file(toname))
+                t.start()
+                time.sleep(1)
 
     def indocx(self):
-        pass
+        filename, _ = QFileDialog.getOpenFileName(self, "选择文件", ".", "docx file(*.docx)")
+        if filename:
+            toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "pdf file(*.pdf)")
+            if toname:
+                docxToPdf(filename, toname)
+                self.open_file(toname)
 
     def inpic(self):
-        pass
+        dig = InPicDialog(self)
+        dig.finishSignal.connect(self.open_file)
+        dig.show()
 
     def tohtml(self):
         pass

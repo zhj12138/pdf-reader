@@ -5,8 +5,10 @@ from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton, QFileDialog, QInp
 import os
 import fitz
 from myemail import sendMailByOutLook
-from mythreads import outEmailThread
+from mythreads import outEmailThread, convertThread, EmailThread
 import time
+from convert import picsToPdf, htmlToPdf
+import re
 
 
 class InsertDialog(QDialog):
@@ -139,58 +141,114 @@ class EmailToOthersDialog(QDialog):
         time.sleep(1)
 
 
-# class ToQQDialog(QDialog):
-#     def __init__(self, parent=None, file_path=""):
-#         super(ToQQDialog, self).__init__(parent)
-#         self.file_path = file_path
-#         layout = QVBoxLayout()
-#         self.toPhone = QPushButton("发送到我的手机")
-#         self.toOthers = QPushButton("前往QQ手动选择好友")
-#         self.toPhone.clicked.connect(self.onToPhone)
-#         self.toOthers.clicked.connect(self.onToOthers)
-#         layout.addWidget(self.toPhone)
-#         layout.addWidget(self.toOthers)
-#         self.setLayout(layout)
-#
-#     def onToPhone(self):
-#         # 模拟Ctrl+Alt+Z打开QQ窗口
-#         CtrlAltZ()
-#         # 设置剪贴板
-#         # time.sleep(0.5)
-#         setClipText("我的手机")
-#         print('copied')
-#         # time.sleep(0.5)
-#         # 模拟Ctrl+V
-#         # time.sleep(1)
-#         CtrlV()
-#         print("ctrl+v")
-#         # 模拟enter
-#         # time.sleep(3)
-#         Enter()
-#         print('enter')
-#         # 设置剪贴板
-#         # copyFile(self.file_path)
-#         # time.sleep(1)
-#         # print("copied")
-#         # # 模拟Ctrl+V
-#         # CtrlV()
-#         # print("to")
-#         # time.sleep(1)
-#         # # 模拟enter键
-#         # Enter()
-#         # print("enter2")
-#
-#     def onToOthers(self):
-#         # 设置剪贴板
-#         copyFile(self.file_path)
-#         QMessageBox.about(self, "提示", "文件已复制到剪贴板")
-#         # 模拟Ctrl+Alt+Z打开QQ窗口
-#         CtrlAltZ()
+class InPicDialog(QDialog):
+    finishSignal = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super(InPicDialog, self).__init__(parent)
+        self.picBtn = QPushButton("手动选择图片")
+        self.fileBtn = QPushButton("选择目录下的所有图片")
+        self.picBtn.clicked.connect(self.onPic)
+        self.fileBtn.clicked.connect(self.onFile)
+        layout = QVBoxLayout()
+        layout.addWidget(self.picBtn)
+        layout.addWidget(self.fileBtn)
+        self.toname = None
+        self.setLayout(layout)
+
+    def onPic(self):
+        filenames, _ = QFileDialog.getOpenFileNames(self, "选择文件", ".", "Image file(*.jpg *.png *.jpeg)")
+        if filenames:
+            self.toname, ok = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF file(*.pdf)")
+            if ok:
+                t = convertThread(picsToPdf, (filenames, self.toname))
+                t.finishSignal.connect(self.handleSig)
+                t.start()
+                time.sleep(2)
+
+    def handleSig(self):
+        self.finishSignal.emit(self.toname)
+
+    def onFile(self):
+        path = QFileDialog.getExistingDirectory(self, "选择文件夹", ".")
+        filenames = [os.path.join(path, filename) for filename in os.listdir(path) if filename.endswith(('.png', '.jpg', 'jpeg'))]
+        self.toname, ok = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF File(*.pdf)")
+        if ok:
+            t = convertThread(picsToPdf, (filenames, self.toname))
+            t.finishSignal.connect(self.handleSig)
+            t.start()
+            time.sleep(2)
 
 
+class pdfkitNoteDialog(QDialog):
+    def __init__(self, parent=None):
+        super(pdfkitNoteDialog, self).__init__(parent)
+        self.label1 = QLabel("非常抱歉，转换失败")
+        self.label2 = QLabel("请确保您已成功安装wkhtmltopdf，并将其路径添加到系统环境变量中")
+        self.toWeb = QPushButton("点击前往下载wkhtmltopdf")
+        self.toPath = QPushButton("点击前往添加系统环境变量")
+        layout = QVBoxLayout()
+        layout.addWidget(self.label1)
+        layout.addWidget(self.label2)
+        layout.addWidget(self.toWeb)
+        layout.addWidget(self.toPath)
+        self.toWeb.clicked.connect(self.onToWeb)
+        self.toPath.clicked.connect(self.onToPath)
+        self.setLayout(layout)
+
+    def onToWeb(self):
+        QDesktopServices.openUrl(QUrl('https://wkhtmltopdf.org/downloads.html'))
+
+    def onToPath(self):
+        os.system('sysdm.cpl')
+        QMessageBox.about(self, "提醒", "请切换到‘高级’标签页，摁下键盘的‘N’键，找到系统变量的PATH栏，然后将wkhtmltopdf的安装路径添加进去")
 
 
+class inHtmlDialog(QDialog):
+    finishSignal = pyqtSignal(str)
 
+    def __init__(self, parent=None):
+        super(inHtmlDialog, self).__init__(parent)
+        self.noteLabel = QLabel("请输入您想要转换的网址")
+        self.urlInput = QLineEdit()
+        self.conBtn = QPushButton("转换")
+        self.filename = ""
+        layout = QVBoxLayout()
+        layout.addWidget(self.noteLabel)
+        layout.addWidget(self.urlInput)
+        layout.addWidget(self.conBtn)
+        self.conBtn.clicked.connect(self.onConvert)
+        self.setLayout(layout)
+
+    def onConvert(self):
+        url = self.urlInput.text()
+        if not re.match(r'https?://(?:[a-zA-Z0-9$-_@.&+]|[!*\\,]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', url):
+            box = QMessageBox(QMessageBox.Warning, "警告", "请输入合法的网址")
+            box.setStandardButtons(QMessageBox.Yes | QMessageBox.Retry)
+            box.button(QMessageBox.Yes).setText("修改原网址")
+            box.button(QMessageBox.Retry).setText("重新输入网址")
+            box.setDefaultButton(QMessageBox.Yes)
+            box.buttonClicked.connect(self.handleBut)
+            box.exec_()
+            return
+
+        self.filename, ok = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF file(*.pdf)")
+        if ok:
+            t = EmailThread(htmlToPdf, (url, self.filename))
+            t.finishSignal.connect(self.onFinish)
+            t.start()
+            time.sleep(1)
+
+    def handleBut(self, btn):
+        if btn.text() == "重新输入网址":
+            self.urlInput.clear()
+
+    def onFinish(self, success):
+        if success:
+            self.finishSignal.emit(self.filename)
+        else:
+            dig = pdfkitNoteDialog(self)
+            dig.show()
 
 
 

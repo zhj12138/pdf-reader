@@ -30,18 +30,18 @@ class outEmailThread(QThread):
         self.finishSignal.emit(self.suc, self.fail)
 
 
-# class EmailObject(QObject):
-#     finishSignal = pyqtSignal(bool)
-#
-#     def __init__(self, func, args):
-#         super(EmailObject, self).__init__()
-#         self.func = func
-#         self.args = args
-#         self.ret = None
-#
-#     def email(self):
-#         print("Hi")
-#         self.ret = self.func(*self.args)
-#         print("Hello")
-#         self.finishSignal.emit(self.ret)
+class convertThread(QThread):
+    finishSignal = pyqtSignal()
+
+    def __init__(self, func, args):
+        super(convertThread, self).__init__()
+        self.func = func
+        self.args = args
+
+    def run(self):
+        self.func(*self.args)
+        self.finishSignal.emit()
+
+
+
 

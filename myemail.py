@@ -42,8 +42,8 @@ def sendMailByOutLook(file_path, address_list):
     suc = 0
     fail = 0
     for address in address_list:
-        print(address)
-        print(type(address))
+        # print(address)
+        # print(type(address))
         if pat.match(str(address)):
             sendSingleMail(file_path, address)
             suc += 1
