@@ -65,6 +65,28 @@ def mdToPdf(file_path, to_name):
     pdfkit.from_string(html, to_name, options={'encoding': 'utf-8'})
 
 
+def tocToMd(file_path, to_name):
+    f = open(to_name, "w", encoding='utf-8')
+    doc = fitz.open(file_path)
+    toc = doc.getToC()
+    print("[TOC]", file=f)
+    if doc.metadata['title']:
+        title = doc.metadata['title']
+    else:
+        title = doc.name.split('/')[-1][:-4]
+    print("# " + title, file=f)
+    for line in toc:
+        layer, title, page = line
+        if layer >= 6:
+            continue
+        print((layer + 1) * '#' + " " + title, file=f)
+    f.close()
 
 
-
+def pdfToImg(file_path, to_path):
+    doc = fitz.open(file_path)
+    total = doc.pageCount
+    for i, page in enumerate(doc):
+        pix = page.getPixmap()
+        pix.writeImage(os.path.join(to_path, "{}.png".format(i+1)))
+        sg.OneLineProgressMeter("converting to image", i+1, total)

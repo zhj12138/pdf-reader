@@ -159,8 +159,8 @@ class InPicDialog(QDialog):
     def onPic(self):
         filenames, _ = QFileDialog.getOpenFileNames(self, "选择文件", ".", "Image file(*.jpg *.png *.jpeg)")
         if filenames:
-            self.toname, ok = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF file(*.pdf)")
-            if ok:
+            self.toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF file(*.pdf)")
+            if self.toname:
                 t = convertThread(picsToPdf, (filenames, self.toname))
                 t.finishSignal.connect(self.handleSig)
                 t.start()
@@ -172,8 +172,8 @@ class InPicDialog(QDialog):
     def onFile(self):
         path = QFileDialog.getExistingDirectory(self, "选择文件夹", ".")
         filenames = [os.path.join(path, filename) for filename in os.listdir(path) if filename.endswith(('.png', '.jpg', 'jpeg'))]
-        self.toname, ok = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF File(*.pdf)")
-        if ok:
+        self.toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF File(*.pdf)")
+        if self.toname:
             t = convertThread(picsToPdf, (filenames, self.toname))
             t.finishSignal.connect(self.handleSig)
             t.start()
@@ -232,8 +232,8 @@ class inHtmlDialog(QDialog):
             box.exec_()
             return
 
-        self.filename, ok = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF file(*.pdf)")
-        if ok:
+        self.filename, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF file(*.pdf)")
+        if self.filename:
             t = EmailThread(htmlToPdf, (url, self.filename))
             t.finishSignal.connect(self.onFinish)
             t.start()

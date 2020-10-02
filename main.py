@@ -452,10 +452,28 @@ class PDFReader(QMainWindow):
         pass
 
     def totoc(self):
-        pass
+        if not self.book_open:
+            return
+        toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "markdown file(*.md)")
+        if toname:
+            t = convertThread(tocToMd, (self.file_path, toname))
+            t.finishSignal.connect(lambda: self.onTotoc(toname))
+            t.start()
+            time.sleep(1)
+
+    def onTotoc(self, file_path):
+        ret = QMessageBox.question(self, '提示', "转换成功，是否打开文件", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+        if ret == QMessageBox.Yes:
+            os.startfile(file_path)
 
     def topic(self):
-        pass
+        if not self.book_open:
+            return
+        file = QFileDialog.getExistingDirectory(self, "选择存储目录", ".")
+        if file:
+            y = convertThread(pdfToImg, (self.file_path, file))
+            y.start()
+            time.sleep(1)
 
     def todocx(self):
         pass
