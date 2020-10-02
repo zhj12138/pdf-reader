@@ -304,6 +304,8 @@ class PDFReader(QMainWindow):
         self.open_file(filename)
 
     def open_file(self, filename):
+        if not filename:
+            return
         if not self.db.fileInDB(filename):
             self.db.addRecentFile(filename)
         else:

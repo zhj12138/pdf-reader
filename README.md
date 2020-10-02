@@ -67,3 +67,14 @@
 `PyQt5`：`UI`的开发
 
 `fitz`：与`pdf`文件相关的操作几乎都用的是它
+
+### 软件截图
+
+![image-20201002175200662](https://gitee.com/snow_zhao/img/raw/master/img/image-20201002175200662.png)
+
+
+
+![image-20201002175325572](https://gitee.com/snow_zhao/img/raw/master/img/image-20201002175325572.png)
+
+
+
