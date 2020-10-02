@@ -1,10 +1,10 @@
-import win32com.client as win32
 import os
-import fitz
+
 import PySimpleGUI as sg
-import time
-import pdfkit
+import fitz
 import markdown
+import pdfkit
+import win32com.client as win32
 from pdf2docx import parse
 
 
@@ -89,8 +89,8 @@ def pdfToImg(file_path, to_path):
     total = doc.pageCount
     for i, page in enumerate(doc):
         pix = page.getPixmap()
-        pix.writeImage(os.path.join(to_path, "{}.png".format(i+1)))
-        sg.OneLineProgressMeter("converting to image", i+1, total)
+        pix.writeImage(os.path.join(to_path, "{}.png".format(i + 1)))
+        sg.OneLineProgressMeter("converting to image", i + 1, total)
 
 
 def pdfToHtmlorTxt(file_path, to_path, type):
@@ -100,7 +100,7 @@ def pdfToHtmlorTxt(file_path, to_path, type):
     for i, page in enumerate(doc):
         text = page.getText(type)
         print(text, file=f)
-        sg.OneLineProgressMeter("converting to html", i+1, total)
+        sg.OneLineProgressMeter("converting to html", i + 1, total)
     f.close()
 
 

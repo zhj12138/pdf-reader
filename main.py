@@ -1,23 +1,27 @@
 # 主程序
 import sys
-import fitz
-from PyQt5.QtCore import Qt, QSize, QRect
-from PyQt5.QtWidgets import *
+
+from PyQt5.QtCore import QSize
 from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+
+from Vkeyboard import *
+from convert import *
+from mydatabase import MyDb
 from mydialogs import *
 from myemail import email_to
 from mythreads import EmailThread
-import time
-from Vkeyboard import *
-from convert import *
 
 
 class PDFReader(QMainWindow):
 
     def __init__(self):
         super(PDFReader, self).__init__()
+        self.db = MyDb()  # 数据库
         self.menubar = self.menuBar()
+        self.recentfile = None
         self.generateMenuBar()
+        self.generateRecentMenu()
         self.toolbar = self.addToolBar("工具栏")
         self.generateToolBar()
         layout = QHBoxLayout(self)
@@ -34,17 +38,9 @@ class PDFReader(QMainWindow):
         self.trans_b = 200
         self.trans = fitz.Matrix(self.trans_a / 100, self.trans_b / 100).preRotate(0)
         self.scrollarea = QScrollArea(self)
-        # self.scrollarea.setMinimumSize(500, 500)
-        # temp = QHBoxLayout()
         self.pdfview = QLabel()
         self.tocDict = {}
-        # temp.addWidget(self.pdfview)
-        # self.scrollarea.setLayout(temp)
-        # self.scrollarea.
         self.scrollarea.setWidget(self.pdfview)
-        # self.scrollarea.setMinimumSize(0, 0)
-        # self.pdfview.setMinimumSize(500, 500)
-        # self.pdfview.set
         self.generatePDFView()
         layout.addWidget(self.scrollarea)
         self.widget = QWidget()
@@ -66,15 +62,8 @@ class PDFReader(QMainWindow):
         pageImage = QImage(pix.samples, pix.width, pix.height, pix.stride, fmt)
         pixmap = QPixmap()
         pixmap.convertFromImage(pageImage)
-        # print(pixmap.size())
-        # pixmap.scaled(1000, 1000)
-        # print(self.width(), "  ", self.height())
-        # self.pdfview.setScaledContents(True)
         self.pdfview.setPixmap(QPixmap(pixmap))
         self.pdfview.resize(pixmap.size())
-        # self.scrollarea.setWidget(self.pdfview)
-        # print(self.pdfview.size())
-        # self.pdfview.adjustSize()
 
     def generateFile(self):
         file = self.menubar.addMenu('文件')
@@ -89,7 +78,7 @@ class PDFReader(QMainWindow):
         saveFile.triggered.connect(self.onSave)
 
         file.addAction(openFile)
-        file.addMenu('最近文件')
+        self.recentfile = file.addMenu('最近文件')
         file.addAction(saveFile)
         file.addAction(closeFile)
 
@@ -105,6 +94,18 @@ class PDFReader(QMainWindow):
         page.addAction(insertPage)
         page.addAction(deletePage)
         page.addAction(extractPage)
+
+    def generateRecentMenu(self):
+        self.recentfile.clear()
+        fileList = self.db.getAllRencentFile()
+        sortlist = sorted(fileList, key=lambda d: d.opentime, reverse=True)
+        actionList = []
+        for file in sortlist:
+            action = QAction(file.path, self.recentfile)
+            self.recentfile.addAction(action)
+            actionList.append(action)
+        for action in actionList:
+            action.triggered.connect(lambda: self.open_file(action.text()))
 
     def generateInfile(self):
         infile = self.menubar.addMenu('导入')
@@ -303,10 +304,19 @@ class PDFReader(QMainWindow):
         self.open_file(filename)
 
     def open_file(self, filename):
-        self.file_path = filename
+        if not self.db.fileInDB(filename):
+            self.db.addRecentFile(filename)
+        else:
+            self.db.updateRecentFile(filename)
+        if os.path.exists(filename):
+            self.file_path = filename
+        else:
+            QMessageBox.about(self, "提醒", "文件不存在")
+            self.db.deleteRecentFile(filename)
         self.toc.clear()
         self.page_num = 0
         self.book_open = True
+        self.generateRecentMenu()
         self.getDoc()
         self.generateDockWidget()
         self.generatePDFView()
@@ -502,13 +512,14 @@ class PDFReader(QMainWindow):
     def tokindle(self):
         if not self.book_open:
             return
-        dig = EmailToKindleDialog(self)
+        emailList = self.db.getAllKindleMail()
+        dig = EmailToKindleDialog(self, emailList)
         dig.addressSignal.connect(self.sendMail)
         dig.show()
 
     def sendMail(self, address):
-        if not self.book_open:
-            return
+        if not self.db.mailInDB(address):
+            self.db.addKindleMail(address)
         t = EmailThread(email_to, (self.file_path, address))
         t.finishSignal.connect(self.finish_mail)
         t.start()

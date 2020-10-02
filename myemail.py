@@ -1,9 +1,10 @@
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-from email.header import Header
-import win32com.client as win32
 import re
+import smtplib
+from email.header import Header
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+
+import win32com.client as win32
 
 
 def email_to(file_path, address):
@@ -17,13 +18,14 @@ def email_to(file_path, address):
 
     msg = MIMEMultipart()
     filename = file_path
+    subject = filename.split('/')[-1][:-4]
 
-    msg['Subject'] = Header(filename)
+    msg['Subject'] = Header(subject)
     msg['From'] = Header(from_address)
     msg['To'] = Header(to_address)
 
     part = MIMEApplication(open(filename, 'rb').read())
-    part.add_header('Content-Disposition', 'attachment', filename=filename)
+    part.add_header('Content-Disposition', 'attachment', filename=filename.split('/')[-1])
     msg.attach(part)
     try:
         server.sendmail(from_address, to_address, msg.as_string())

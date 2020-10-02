@@ -1,14 +1,16 @@
-from PyQt5.QtCore import pyqtSignal, QUrl, Qt, QMimeData
+import os
+import re
+import time
+
+import fitz
+from PyQt5.QtCore import pyqtSignal, QUrl
 from PyQt5.QtGui import QDesktopServices, QFont
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton, QFileDialog, QInputDialog, QLabel, QLineEdit, \
-    QApplication, QMessageBox
-import os
-import fitz
+    QApplication, QMessageBox, QComboBox
+
+from convert import picsToPdf, htmlToPdf
 from myemail import sendMailByOutLook
 from mythreads import outEmailThread, convertThread, EmailThread
-import time
-from convert import picsToPdf, htmlToPdf
-import re
 
 
 class InsertDialog(QDialog):
@@ -62,7 +64,8 @@ class InsertDialog(QDialog):
             page_num = doc.pageCount
             start, ok = QInputDialog.getInt(self, "选择开始页面", "输入开始页面(1-{})".format(page_num), min=1, max=page_num)
             if ok:
-                end, bok = QInputDialog.getInt(self, "选择结束页面", "输入结束页面({}-{})".format(start, page_num), min=start, max=page_num)
+                end, bok = QInputDialog.getInt(self, "选择结束页面", "输入结束页面({}-{})".format(start, page_num), min=start,
+                                               max=page_num)
                 if bok:
                     self.pdfSignal.emit(file_path, start, end)
 
@@ -70,7 +73,7 @@ class InsertDialog(QDialog):
 class EmailToKindleDialog(QDialog):
     addressSignal = pyqtSignal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, emailList=None):
         super(EmailToKindleDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self.noteLabel = QLabel("<b style='color: red'>请确保您已将2587354021@qq.com加入信任邮箱</b>")
@@ -78,12 +81,14 @@ class EmailToKindleDialog(QDialog):
         self.tsLabel = QLabel("输入您的kindle邮箱")
         self.tsLabel.setFont(QFont("", 14))
         self.sendBtn = QPushButton("发送")
-        self.addressInput = QLineEdit()
+        self.addressComboBox = QComboBox()
+        self.addressComboBox.setEditable(True)
+        self.addressComboBox.addItems(emailList)
         self.linkButton.clicked.connect(self.openLink)
         self.sendBtn.clicked.connect(self.sendAddr)
         # self.sendBtn.setFocusPolicy(Qt.StrongFocus)
         layout.addWidget(self.tsLabel)
-        layout.addWidget(self.addressInput)
+        layout.addWidget(self.addressComboBox)
         layout.addWidget(self.sendBtn)
         layout.addWidget(self.noteLabel)
         layout.addWidget(self.linkButton)
@@ -96,7 +101,7 @@ class EmailToKindleDialog(QDialog):
         QDesktopServices.openUrl(QUrl('https://www.amazon.cn/hz/mycd/myx#/home/settings/payment'))
 
     def sendAddr(self):
-        address = self.addressInput.text()
+        address = self.addressComboBox.currentText()
         if address:
             self.addressSignal.emit(address)
 
@@ -171,7 +176,8 @@ class InPicDialog(QDialog):
 
     def onFile(self):
         path = QFileDialog.getExistingDirectory(self, "选择文件夹", ".")
-        filenames = [os.path.join(path, filename) for filename in os.listdir(path) if filename.endswith(('.png', '.jpg', 'jpeg'))]
+        filenames = [os.path.join(path, filename) for filename in os.listdir(path) if
+                     filename.endswith(('.png', '.jpg', 'jpeg'))]
         self.toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF File(*.pdf)")
         if self.toname:
             t = convertThread(picsToPdf, (filenames, self.toname))
@@ -249,6 +255,3 @@ class inHtmlDialog(QDialog):
         else:
             dig = pdfkitNoteDialog(self)
             dig.show()
-
-
-
