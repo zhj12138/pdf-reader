@@ -446,10 +446,24 @@ class PDFReader(QMainWindow):
         dig.show()
 
     def tohtml(self):
-        pass
+        if not self.book_open:
+            return
+        toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "html file(*.html)")
+        if toname:
+            t = convertThread(pdfToHtmlorTxt, (self.file_path, toname, "html"))
+            t.finishSignal.connect(lambda: self.openFileNote(toname))
+            t.start()
+            time.sleep(1)
 
     def totxt(self):
-        pass
+        if not self.book_open:
+            return
+        toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "txt file(*.txt)")
+        if toname:
+            t = convertThread(pdfToHtmlorTxt, (self.file_path, toname, "text"))
+            t.finishSignal.connect(lambda: self.openFileNote(toname))
+            t.start()
+            time.sleep(1)
 
     def totoc(self):
         if not self.book_open:
@@ -457,11 +471,11 @@ class PDFReader(QMainWindow):
         toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "markdown file(*.md)")
         if toname:
             t = convertThread(tocToMd, (self.file_path, toname))
-            t.finishSignal.connect(lambda: self.onTotoc(toname))
+            t.finishSignal.connect(lambda: self.openFileNote(toname))
             t.start()
             time.sleep(1)
 
-    def onTotoc(self, file_path):
+    def openFileNote(self, file_path):
         ret = QMessageBox.question(self, '提示', "转换成功，是否打开文件", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
         if ret == QMessageBox.Yes:
             os.startfile(file_path)
@@ -469,14 +483,21 @@ class PDFReader(QMainWindow):
     def topic(self):
         if not self.book_open:
             return
-        file = QFileDialog.getExistingDirectory(self, "选择存储目录", ".")
+        file = QFileDialog.getExistingDirectory(self, "", ".")
         if file:
             y = convertThread(pdfToImg, (self.file_path, file))
             y.start()
             time.sleep(1)
 
     def todocx(self):
-        pass
+        if not self.book_open:
+            return
+        toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "docx file(*.docx)")
+        if toname:
+            t = convertThread(pdfToDocx, (self.file_path, toname))
+            t.finishSignal.connect(lambda: self.openFileNote(toname))
+            t.start()
+            time.sleep(1)
 
     def tokindle(self):
         if not self.book_open:

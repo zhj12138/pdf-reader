@@ -5,6 +5,7 @@ import PySimpleGUI as sg
 import time
 import pdfkit
 import markdown
+from pdf2docx import parse
 
 
 # 测试成功
@@ -90,3 +91,20 @@ def pdfToImg(file_path, to_path):
         pix = page.getPixmap()
         pix.writeImage(os.path.join(to_path, "{}.png".format(i+1)))
         sg.OneLineProgressMeter("converting to image", i+1, total)
+
+
+def pdfToHtmlorTxt(file_path, to_path, type):
+    doc = fitz.open(file_path)
+    total = doc.pageCount
+    f = open(to_path, 'w', encoding='utf-8')
+    for i, page in enumerate(doc):
+        text = page.getText(type)
+        print(text, file=f)
+        sg.OneLineProgressMeter("converting to html", i+1, total)
+    f.close()
+
+
+def pdfToDocx(file_path, to_path):
+    doc = fitz.open(file_path)
+    count = doc.pageCount
+    parse(file_path, to_path, start=0, end=count - 1)
