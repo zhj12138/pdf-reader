@@ -1,10 +1,9 @@
-import re
 import smtplib
-from email.header import Header
-from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
-
+from email.mime.application import MIMEApplication
+from email.header import Header
 import win32com.client as win32
+import re
 
 
 def email_to(file_path, address):

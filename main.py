@@ -1,16 +1,16 @@
 # 主程序
 import sys
-
-from PyQt5.QtCore import QSize
-from PyQt5.QtGui import *
+import fitz
+from PyQt5.QtCore import Qt, QSize, QRect
 from PyQt5.QtWidgets import *
-
-from Vkeyboard import *
-from convert import *
-from mydatabase import MyDb
+from PyQt5.QtGui import *
 from mydialogs import *
 from myemail import email_to
 from mythreads import EmailThread
+import time
+from Vkeyboard import *
+from convert import *
+from mydatabase import MyDb
 
 
 class PDFReader(QMainWindow):

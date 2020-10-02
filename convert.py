@@ -1,9 +1,12 @@
 import os
+import fitz
 
 import PySimpleGUI as sg
+import time
 import fitz
 import markdown
 import pdfkit
+import markdown
 import win32com.client as win32
 from pdf2docx import parse
 

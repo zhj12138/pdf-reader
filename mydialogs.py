@@ -1,16 +1,14 @@
-import os
-import re
-import time
-
-import fitz
-from PyQt5.QtCore import pyqtSignal, QUrl
+from PyQt5.QtCore import pyqtSignal, QUrl, Qt, QMimeData
 from PyQt5.QtGui import QDesktopServices, QFont
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QPushButton, QFileDialog, QInputDialog, QLabel, QLineEdit, \
     QApplication, QMessageBox, QComboBox
-
-from convert import picsToPdf, htmlToPdf
+import os
+import fitz
 from myemail import sendMailByOutLook
 from mythreads import outEmailThread, convertThread, EmailThread
+import time
+from convert import picsToPdf, htmlToPdf
+import re
 
 
 class InsertDialog(QDialog):
@@ -64,8 +62,7 @@ class InsertDialog(QDialog):
             page_num = doc.pageCount
             start, ok = QInputDialog.getInt(self, "选择开始页面", "输入开始页面(1-{})".format(page_num), min=1, max=page_num)
             if ok:
-                end, bok = QInputDialog.getInt(self, "选择结束页面", "输入结束页面({}-{})".format(start, page_num), min=start,
-                                               max=page_num)
+                end, bok = QInputDialog.getInt(self, "选择结束页面", "输入结束页面({}-{})".format(start, page_num), min=start, max=page_num)
                 if bok:
                     self.pdfSignal.emit(file_path, start, end)
 
@@ -73,7 +70,7 @@ class InsertDialog(QDialog):
 class EmailToKindleDialog(QDialog):
     addressSignal = pyqtSignal(str)
 
-    def __init__(self, parent=None, emailList=None):
+    def __init__(self, parent=None, emailList = None):
         super(EmailToKindleDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self.noteLabel = QLabel("<b style='color: red'>请确保您已将2587354021@qq.com加入信任邮箱</b>")
@@ -176,8 +173,7 @@ class InPicDialog(QDialog):
 
     def onFile(self):
         path = QFileDialog.getExistingDirectory(self, "选择文件夹", ".")
-        filenames = [os.path.join(path, filename) for filename in os.listdir(path) if
-                     filename.endswith(('.png', '.jpg', 'jpeg'))]
+        filenames = [os.path.join(path, filename) for filename in os.listdir(path) if filename.endswith(('.png', '.jpg', 'jpeg'))]
         self.toname, _ = QFileDialog.getSaveFileName(self, "保存文件", ".", "PDF File(*.pdf)")
         if self.toname:
             t = convertThread(picsToPdf, (filenames, self.toname))
@@ -255,3 +251,6 @@ class inHtmlDialog(QDialog):
         else:
             dig = pdfkitNoteDialog(self)
             dig.show()
+
+
+
