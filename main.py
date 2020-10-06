@@ -1,16 +1,16 @@
 # 主程序
 import sys
-import fitz
-from PyQt5.QtCore import Qt, QSize, QRect, QObject
+from PyQt5.QtCore import QSize
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from mydialogs import *
 from myemail import email_to
-from mythreads import EmailThread
+from mythreads import EmailThread, readThread, convertThread
 import time
 from Vkeyboard import *
 from convert import *
 from mydatabase import MyDb
+from mdEditor import MdEditor
 
 
 class PDFReader(QMainWindow):
@@ -32,6 +32,9 @@ class PDFReader(QMainWindow):
         self.page_num = 0
         self.doc = None
         self.book_open = False
+        self.note_keeped = ""
+        # self.note_loadFromFile = False
+        self.note_path = ""
         self.dock = QDockWidget()
         self.generateDockWidget()
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock)
@@ -44,6 +47,11 @@ class PDFReader(QMainWindow):
         self.tocDict = {}
         self.scrollarea.setWidget(self.pdfview)
         self.generatePDFView()
+        self.editor = MdEditor()
+        self.doc2 = QDockWidget()
+        self.doc2.setWidget(self.editor)
+        self.doc2.setVisible(False)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.doc2)
         layout.addWidget(self.scrollarea)
         self.widget = QWidget()
         self.widget.setLayout(layout)
@@ -97,6 +105,21 @@ class PDFReader(QMainWindow):
         page.addAction(deletePage)
         page.addAction(extractPage)
 
+    def generateNote(self):
+        note = self.menubar.addMenu('笔记')
+        note.setFont(QFont("", 13))
+        toNote = QAction("导出笔记", note)
+        loadNote = QAction("加载笔记", note)
+        keepNote = QAction("保存笔记", note)
+
+        toNote.triggered.connect(self.toNote)
+        loadNote.triggered.connect(self.onloadNote)
+        keepNote.triggered.connect(self.keepNote)
+
+        note.addAction(toNote)
+        note.addAction(loadNote)
+        note.addAction(keepNote)
+
     def generateRecentMenu(self):
         self.recentfile.clear()
         fileList = self.db.getAllRencentFile()
@@ -130,16 +153,26 @@ class PDFReader(QMainWindow):
     def generateOutfile(self):
         outfile = self.menubar.addMenu('导出')
         outfile.setFont(QFont("", 13))
+        # toNote = QAction("导出笔记", outfile)
+        # loadNote = QAction("加载笔记", outfile)
+        # keepNote = QAction("保存笔记", outfile)
         toToC = QAction('导出目录', outfile)
         toPic = QAction('导出为图片', outfile)
         toHTML = QAction(QIcon('icon/html.png'), '导出为HTML', outfile)
         toTXT = QAction(QIcon('icon/txt.png'), '导出为TXT', outfile)
         toDocx = QAction(QIcon('icon/word.png'), '导出为Docx', outfile)
 
+        # toNote.triggered.connect(self.toNote)
+        # loadNote.triggered.connect(self.onloadNote)
+        # keepNote.triggered.connect(self.keepNote)
         toToC.triggered.connect(self.totoc)
         toPic.triggered.connect(self.topic)
         self.tofileConnect(toDocx, toHTML, toTXT)
 
+        # outfile.addAction(toNote)
+        # outfile.addAction(loadNote)
+        # outfile.addAction(keepNote)
+        # outfile.addSeparator()
         outfile.addAction(toToC)
         outfile.addAction(toPic)
         outfile.addSeparator()
@@ -163,18 +196,10 @@ class PDFReader(QMainWindow):
         share.addAction(toEmail)
 
     def generateMenuBar(self):
-        # qss = '''
-        # QMenuBar{
-        #     min-height: 35px;
-        #     font-size: 22px;
-        # }
-        # QMenu::item{
-        #
-        # }'''
-        # self.menubar.setStyleSheet(qss)
         self.menubar.setFont(QFont("", 13))  # 设置菜单栏字体大小
         self.generateFile()
         self.generatePage()
+        self.generateNote()
         self.generateInfile()
         self.generateOutfile()
         self.generateShare()
@@ -203,6 +228,8 @@ class PDFReader(QMainWindow):
         toQQ = QAction(QIcon('icon/QQ.png'), '分享到QQ', self.toolbar)
         toWechat = QAction(QIcon('icon/wechat.png'), '分享到微信', self.toolbar)
         toEmail = QAction(QIcon('icon/email.png'), '通过邮件发送', self.toolbar)
+        editor = QAction(QIcon('icon/markdown_2.png'), "编辑器", self.toolbar)
+        editor.triggered.connect(self.onDoc2)
 
         nextPage.setShortcut(Qt.Key_Right)
         prePage.setShortcut(Qt.Key_Left)
@@ -219,7 +246,7 @@ class PDFReader(QMainWindow):
         self.tofileConnect(toDocx, toHTML, toTXT)
         self.pageConnect(deletePage, extractPage, insertPage)
 
-        self.toolbar.addActions([ToC])
+        self.toolbar.addActions([ToC, editor])
         self.toolbar.addSeparator()
         self.toolbar.addActions([openFile, saveFile])
         self.toolbar.addSeparator()
@@ -301,6 +328,15 @@ class PDFReader(QMainWindow):
                 self.dock.setVisible(False)
             else:
                 self.dock.setVisible(True)
+        except AttributeError:
+            pass
+
+    def onDoc2(self):
+        try:
+            if self.doc2.isVisible():
+                self.doc2.setVisible(False)
+            else:
+                self.doc2.setVisible(True)
         except AttributeError:
             pass
 
@@ -498,6 +534,42 @@ class PDFReader(QMainWindow):
         if ret == QMessageBox.Yes:
             os.startfile(file_path)
 
+    def toNote(self):
+        file, _ = QFileDialog.getSaveFileName(self, "导出笔记", ".", "markdown file(*.md)")
+        if file:
+            text = self.editor.writePart.toPlainText()
+            self.note_keeped = text
+            # self.note_loadFromFile = True
+            self.note_path = file
+            t = convertThread(writeToFile, (file, text))
+            t.start()
+            time.sleep(0.1)
+
+    def onloadNote(self):
+        file, _ = QFileDialog.getOpenFileName(self, "导入笔记", ".", "markdown file(*.md)")
+        if file:
+            t = readThread(readFromFile, file)
+            t.finishSignal.connect(self.finishRead)
+            self.note_path = file
+            t.start()
+            time.sleep(0.1)
+
+    def finishRead(self, text):
+        self.editor.writePart.setPlainText(text)
+        # self.note_loadFromFile = True
+        self.doc2.setVisible(True)
+        self.note_keeped = text
+
+    def keepNote(self):
+        if os.path.exists(self.note_path):  # 已保存过的存在文件
+            text = self.editor.writePart.toPlainText()
+            self.note_keeped = text
+            t = convertThread(writeToFile, (self.note_path, text))
+            t.start()
+            time.sleep(0.1)
+        else:
+            self.toNote()
+
     def topic(self):
         if not self.book_open:
             return
@@ -560,6 +632,14 @@ class PDFReader(QMainWindow):
 
     def onToemail(self, suc, fail):
         QMessageBox.about(self, "提示", "{}个成功，{}个失败".format(suc, fail))
+
+    def closeEvent(self, *args, **kwargs):
+        text = self.editor.writePart.toPlainText()
+        if text:
+            if text != self.note_keeped:
+                ret = QMessageBox.question(self, '提示', "笔记尚未保存，是否保存", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+                if ret == QMessageBox.Yes:
+                    self.keepNote()
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ import pdfkit
 import markdown
 import win32com.client as win32
 from pdf2docx import parse
+from mdConvert import md2html
 
 
 # 测试成功
@@ -46,22 +47,9 @@ def htmlToPdf(url, to_name):
 
 
 def mdToPdf(file_path, to_name):
-    extensions = [
-        'markdown.extensions.extra',
-        'markdown.extensions.codehilite',
-        'markdown.extensions.legacy_em',
-        'markdown.extensions.toc',
-        'markdown.extensions.wikilinks',
-        'markdown.extensions.admonition',
-        'markdown.extensions.legacy_attrs',
-        'markdown.extensions.meta',
-        'markdown.extensions.nl2br',
-        'markdown.extensions.sane_lists',
-        'markdown.extensions.smarty',
-    ]
     with open(file_path, 'r', encoding='utf-8') as f:
         text = f.read()
-    html = markdown.markdown(text, output_format='html', extensions=extensions)
+    html = md2html(text)
     pdfkit.from_string(html, to_name, options={'encoding': 'utf-8'})
 
 
@@ -107,3 +95,14 @@ def pdfToDocx(file_path, to_path):
     doc = fitz.open(file_path)
     count = doc.pageCount
     parse(file_path, to_path, start=0, end=count - 1)
+
+
+def writeToFile(file, text):
+    f = open(file, 'w', encoding='utf-8')
+    print(text, file=f)
+
+
+def readFromFile(file):
+    with open(file, 'r', encoding='utf-8') as f:
+        text = f.read()
+    return text

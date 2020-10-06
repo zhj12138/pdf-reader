@@ -41,3 +41,17 @@ class convertThread(QThread):
     def run(self):
         self.func(*self.args)
         self.finishSignal.emit()
+
+
+class readThread(QThread):
+    finishSignal = pyqtSignal(str)
+
+    def __init__(self, func, args):
+        super(readThread, self).__init__()
+        self.func = func
+        self.args = args
+        self.ret = None
+
+    def run(self):
+        self.ret = self.func(self.args)
+        self.finishSignal.emit(self.ret)
