@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QThread, pyqtSignal, QObject
+from PyQt5.QtCore import QThread, pyqtSignal
 
 
 class EmailThread(QThread):
@@ -41,7 +41,3 @@ class convertThread(QThread):
     def run(self):
         self.func(*self.args)
         self.finishSignal.emit()
-
-
-
-

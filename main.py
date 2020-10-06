@@ -1,7 +1,7 @@
 # 主程序
 import sys
 import fitz
-from PyQt5.QtCore import Qt, QSize, QRect
+from PyQt5.QtCore import Qt, QSize, QRect, QObject
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from mydialogs import *
@@ -22,10 +22,12 @@ class PDFReader(QMainWindow):
         self.recentfile = None
         self.generateMenuBar()
         self.generateRecentMenu()
+        self.recentfile.triggered.connect(self.onRecentFileClicked)  # 此句话修复了bug
         self.toolbar = self.addToolBar("工具栏")
         self.generateToolBar()
         layout = QHBoxLayout(self)
         self.toc = QTreeWidget()
+        self.toc.setFont(QFont("", 13))
         self.file_path = ""
         self.page_num = 0
         self.doc = None
@@ -99,13 +101,13 @@ class PDFReader(QMainWindow):
         self.recentfile.clear()
         fileList = self.db.getAllRencentFile()
         sortlist = sorted(fileList, key=lambda d: d.opentime, reverse=True)
-        actionList = []
         for file in sortlist:
             action = QAction(file.path, self.recentfile)
             self.recentfile.addAction(action)
-            actionList.append(action)
-        for action in actionList:
-            action.triggered.connect(lambda: self.open_file(action.text()))
+        # self.recentfile.triggered.connect(self.onRecentFileClicked)
+
+    def onRecentFileClicked(self, action):
+        self.open_file(action.text())
 
     def generateInfile(self):
         infile = self.menubar.addMenu('导入')
@@ -161,15 +163,16 @@ class PDFReader(QMainWindow):
         share.addAction(toEmail)
 
     def generateMenuBar(self):
-        qss = '''
-        QMenuBar{
-            min-height: 35px;
-            font-size: 22px;
-        }
-        QMenu::item{
-
-        }'''
-        self.menubar.setStyleSheet(qss)
+        # qss = '''
+        # QMenuBar{
+        #     min-height: 35px;
+        #     font-size: 22px;
+        # }
+        # QMenu::item{
+        #
+        # }'''
+        # self.menubar.setStyleSheet(qss)
+        self.menubar.setFont(QFont("", 13))
         self.generateFile()
         self.generatePage()
         self.generateInfile()
