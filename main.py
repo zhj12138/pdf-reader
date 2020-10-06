@@ -27,7 +27,7 @@ class PDFReader(QMainWindow):
         self.generateToolBar()
         layout = QHBoxLayout(self)
         self.toc = QTreeWidget()
-        self.toc.setFont(QFont("", 13))
+        self.toc.setFont(QFont("", 13))  # 目录文字的字体及其大小控制，修改字体将字体名放入双引号中（为空表示使用默认字体），字体大小修改数字即可，数字越大字体越大
         self.file_path = ""
         self.page_num = 0
         self.doc = None
@@ -172,7 +172,7 @@ class PDFReader(QMainWindow):
         #
         # }'''
         # self.menubar.setStyleSheet(qss)
-        self.menubar.setFont(QFont("", 13))
+        self.menubar.setFont(QFont("", 13))  # 设置菜单栏字体大小
         self.generateFile()
         self.generatePage()
         self.generateInfile()
@@ -181,7 +181,10 @@ class PDFReader(QMainWindow):
 
     def generateToolBar(self):
         self.toolbar.setMinimumSize(QSize(200, 200))
-        self.toolbar.setIconSize(QSize(100, 100))
+        self.toolbar.setIconSize(QSize(100, 100))  # 设置工具栏图标大小
+        # self.toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)  # 文字在图标旁边
+        # self.toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)  # 文字在图标下方
+        # 不设置以上两句话默认只显示图标
         ToC = QAction(QIcon('icon/目录 (5).png'), '目录', self.toolbar)
         openFile = QAction(QIcon('icon/file.png'), '打开文件', self.toolbar)
         saveFile = QAction(QIcon('icon/Save (3).png'), '保存文件', self.toolbar)
@@ -371,7 +374,7 @@ class PDFReader(QMainWindow):
             self.updatePdfView()
 
     def enlargepage(self):
-        self.trans_a += 5
+        self.trans_a += 5  # 每次放大增加5%,修改此参数时注意和下方的tran_b保持一致，否则图片会变形
         self.trans_b += 5
         self.trans = fitz.Matrix(self.trans_a / 100, self.trans_b / 100).preRotate(0)
         self.generatePDFView()
