@@ -101,20 +101,3 @@ class MyDb:
         conn.commit()
         conn.close()
 
-# if __name__ == '__main__':
-#     myd = MyDb()
-#     myd.addKindleMail("1550223143@qq.com")
-#     myd.addKindleMail("2587354021@qq.com")
-#     print(myd.getAllKindleMail())
-#     myd.addRecentFile("file1-算法")
-#     time.sleep(1)
-#     myd.addRecentFile('file2-你好')
-#     mlist = myd.getAllRencentFile()
-#     for i in mlist:
-#         print(i.path, " ", i.opentime)
-#     print(myd.fileInDB('file1-算法'))
-#     print(myd.fileInDB('file3'))
-#     myd.updateRecentFile('file1-算法')
-#     mlist = myd.getAllRencentFile()
-#     for i in mlist:
-#         print(i.path, " ", i.opentime)
