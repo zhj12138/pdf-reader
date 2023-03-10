@@ -251,6 +251,3 @@ class inHtmlDialog(QDialog):
         else:
             dig = pdfkitNoteDialog(self)
             dig.show()
-
-
-

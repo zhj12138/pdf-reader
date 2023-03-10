@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from mydialogs import *
 from myemail import email_to
+from myparser import MyParser
 from mythreads import EmailThread, readThread, convertThread
 import time
 from Vkeyboard import *
@@ -57,6 +58,13 @@ class PDFReader(QMainWindow):
         self.widget.setLayout(layout)
         self.setCentralWidget(self.widget)
         self.setWindowTitle('PDF Reader')
+
+        if len(sys.argv) >= 2:
+            myparser = MyParser()
+            args = myparser.parser.parse_args()
+            if not args.toname and args.filename:
+                self.open_file(args.filename)
+
         desktop = QApplication.desktop()
         rect = desktop.availableGeometry()
         self.setGeometry(rect)
@@ -153,26 +161,16 @@ class PDFReader(QMainWindow):
     def generateOutfile(self):
         outfile = self.menubar.addMenu('导出')
         outfile.setFont(QFont("", 13))
-        # toNote = QAction("导出笔记", outfile)
-        # loadNote = QAction("加载笔记", outfile)
-        # keepNote = QAction("保存笔记", outfile)
         toToC = QAction('导出目录', outfile)
         toPic = QAction('导出为图片', outfile)
         toHTML = QAction(QIcon('icon/html.png'), '导出为HTML', outfile)
         toTXT = QAction(QIcon('icon/txt.png'), '导出为TXT', outfile)
         toDocx = QAction(QIcon('icon/word.png'), '导出为Docx', outfile)
 
-        # toNote.triggered.connect(self.toNote)
-        # loadNote.triggered.connect(self.onloadNote)
-        # keepNote.triggered.connect(self.keepNote)
         toToC.triggered.connect(self.totoc)
         toPic.triggered.connect(self.topic)
         self.tofileConnect(toDocx, toHTML, toTXT)
 
-        # outfile.addAction(toNote)
-        # outfile.addAction(loadNote)
-        # outfile.addAction(keepNote)
-        # outfile.addSeparator()
         outfile.addAction(toToC)
         outfile.addAction(toPic)
         outfile.addSeparator()
@@ -271,7 +269,6 @@ class PDFReader(QMainWindow):
             return
         self.toc.setColumnCount(1)
         self.toc.setHeaderLabels(['目录'])
-        # tree.setMinimumSize(500, 500)
         self.toc.setWindowTitle('目录')
         toc = self.doc.getToC()
         nodelist = [self.toc]
@@ -279,25 +276,16 @@ class PDFReader(QMainWindow):
         tempdict = {}
         if not toc:
             return tempdict
-        first = True
         for line in toc:
             floor, title, page = line
-            if first:
-                node = QTreeWidgetItem(self.toc)
-                node.setText(0, title)
-                nodelist.append(node)
-                floorlist.append(floor)
-                tempdict[title] = page
-                first = False
-            else:
-                while floorlist[-1] >= floor:
-                    nodelist.pop()
-                    floorlist.pop()
-                node = QTreeWidgetItem(nodelist[-1])
-                node.setText(0, title)
-                nodelist.append(node)
-                floorlist.append(floor)
-                tempdict[title] = page
+            while floorlist[-1] >= floor:
+                nodelist.pop()
+                floorlist.pop()
+            node = QTreeWidgetItem(nodelist[-1])
+            node.setText(0, title)
+            nodelist.append(node)
+            floorlist.append(floor)
+            tempdict[title] = page
         self.tocDict = tempdict
         self.toc.clicked.connect(self.bookmark_jump)
 
